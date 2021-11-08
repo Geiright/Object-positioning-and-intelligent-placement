@@ -1,0 +1,7 @@
+ipdb
+numpy>=1.0.0
+opencv-python
+scikit-image>=0.15.0
+torch
+torchvision
+tqdm
