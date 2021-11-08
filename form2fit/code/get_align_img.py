@@ -192,9 +192,9 @@ def get_curr_image(pipeline,align):
             wait_frame_count = wait_frame_count - 1 
             continue
         
-        # processed_frame = depth_processing(aligned_depth_frame, decimation, spatial, temporal, hole_filling, depth_to_disparity, disparity_to_depth)
-        # processed_depth = processed_frame.as_depth_frame()
-        depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        processed_frame = depth_processing(aligned_depth_frame, decimation, spatial, temporal, hole_filling, depth_to_disparity, disparity_to_depth)
+        processed_depth = processed_frame.as_depth_frame()
+        depth_image = np.asanyarray(processed_depth.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
         # Remove background - Set pixels further than clipping_distance to grey

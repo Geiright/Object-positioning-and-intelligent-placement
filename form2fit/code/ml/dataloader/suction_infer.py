@@ -194,37 +194,7 @@ class SuctionDataset(Dataset):
         assert c_height_i.shape==(480,424)
         assert d_height_i.shape==(480,424)
         # self._H, self._W = c_height_f.shape[:2]#
-        '''if self._background_subtract is not None:
-            # 用深度图区分盒子和物体
-            idxs = np.vstack(np.where(d_height_i > self._background_subtract[0])).T
-            mask = np.zeros_like(d_height_i)
-            mask[idxs[:, 0], idxs[:, 1]] = 1
-            mask = misc.largest_cc(mask)
-            idxs = np.vstack(np.where(mask == 1)).T
-            mask = np.zeros_like(d_height_i)
-            # 生成不包含白边的mask
-            mask[idxs[:, 0].min():idxs[:, 0].max(), idxs[:, 1].min():idxs[:, 1].max()] = 1
-            # mask = np.zeros_like(d_height_i)
-            # mask[idxs[:, 0], idxs[:, 1]] = 1
-            # mask = misc.largest_cc(np.logical_not(mask))
-            idxs = np.vstack(np.where(mask == 0)).T
-            # 把用深度图选出的白边置为0
-            c_height_i[idxs[:, 0], idxs[:, 1]] = 0
-            d_height_i[idxs[:, 0], idxs[:, 1]] = 0
-            # 终止位置图片同上
-            idxs = np.vstack(np.where(d_height_f > self._background_subtract[1])).T
-            mask = np.zeros_like(d_height_f)
-            mask[idxs[:, 0], idxs[:, 1]] = 1
-            mask = misc.largest_cc(np.logical_not(mask))
-            idxs = np.vstack(np.where(mask == 1)).T
-            c_height_f[idxs[:, 0], idxs[:, 1]] = 0
-            d_height_f[idxs[:, 0], idxs[:, 1]] = 0
-        if self._num_channels == 2:
-            c_height_i = c_height_i[..., np.newaxis]#(W,H,1)
-            c_height_f = c_height_f[..., np.newaxis]
-        else:  # clone the gray channel 3 times
-            c_height_i = np.repeat(c_height_i[..., np.newaxis], 3, axis=-1)#(W,H,3)
-            c_height_f = np.repeat(c_height_f[..., np.newaxis], 3, axis=-1)'''
+        
         if self._background_subtract :#TODO:修改条件
             
             thre_otsu, img_otsu = cv2.threshold(d_height_i,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
