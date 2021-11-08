@@ -265,62 +265,6 @@ class SuctionDataset(Dataset):
             affine = affine[:2, :]
             pos_suction_f = (affine @ np.hstack((pos_suction_f, np.ones((len(pos_suction_f), 1)))).T).T
 
-        #背景消除原版：使用两个阈值分别割出盒子和物体
-        # if self._background_subtract is not None:
-        #     # 用深度图区分盒子和物体
-        #     idxs = np.vstack(np.where(d_height_i > self._background_subtract[0])).T
-        #     mask = np.zeros_like(d_height_i)
-        #     mask[idxs[:, 0], idxs[:, 1]] = 1
-        #     mask = misc.largest_cc(mask)
-        #     idxs = np.vstack(np.where(mask == 1)).T
-        #     mask = np.zeros_like(d_height_i)
-        #     # 生成不包含白边的mask
-        #     mask[idxs[:, 0].min():idxs[:, 0].max(), idxs[:, 1].min():idxs[:, 1].max()] = 1
-        #     # mask = np.zeros_like(d_height_i)
-        #     # mask[idxs[:, 0], idxs[:, 1]] = 1
-        #     # mask = misc.largest_cc(np.logical_not(mask))
-        #     idxs = np.vstack(np.where(mask == 0)).T
-        #     # 把用深度图选出的白边置为0
-        #     c_height_i[idxs[:, 0], idxs[:, 1]] = 0
-        #     d_height_i[idxs[:, 0], idxs[:, 1]] = 0
-        #     # 终止位置图片同上
-        #     idxs = np.vstack(np.where(d_height_f > self._background_subtract[1])).T
-        #     mask = np.zeros_like(d_height_f)
-        #     mask[idxs[:, 0], idxs[:, 1]] = 1
-        #     mask = misc.largest_cc(np.logical_not(mask))
-        #     idxs = np.vstack(np.where(mask == 1)).T
-        #     c_height_f[idxs[:, 0], idxs[:, 1]] = 0
-        #     d_height_f[idxs[:, 0], idxs[:, 1]] = 0
-
-        #背景消除第二版：使用四个阈值（分别是盒子和物体的上下限）来分割物体
-        # if self._background_subtract is not None:
-        #     # 用深度图区分割出盒子和和盒子外的所有物体
-        #     #对于source：c_height_i和d_height_i
-        #     condition = np.logical_and(d_height_i >= self._background_subtract[0], d_height_i <= self._background_subtract[1])
-        #     idxs = np.vstack(np.where(condition)).T
-        #     mask = np.zeros_like(d_height_i)
-        #     mask[idxs[:, 0], idxs[:, 1]] = 1
-        #     mask = misc.largest_cc(mask)
-        #     idxs = np.vstack(np.where(mask == 1)).T
-        #     mask = np.zeros_like(d_height_i)
-        #     mask[idxs[:, 0].min():idxs[:, 0].max(), idxs[:, 1].min():idxs[:, 1].max()] = 1
-        #     # mask = np.zeros_like(d_height_i)
-        #     # mask[idxs[:, 0], idxs[:, 1]] = 1
-        #     # mask = misc.largest_cc(np.logical_not(mask))
-        #     idxs = np.vstack(np.where(mask == 0)).T
-        #     c_height_i[idxs[:, 0], idxs[:, 1]] = 0
-        #     d_height_i[idxs[:, 0], idxs[:, 1]] = 0
-
-        #     #对于target：c_height_d和d_height_f
-        #     condition = np.logical_and(d_height_f >= self._background_subtract[2], d_height_f <= self._background_subtract[3])
-        #     idxs = np.vstack(np.where(condition)).T
-        #     mask = np.zeros_like(d_height_f)
-        #     mask[idxs[:, 0], idxs[:, 1]] = 1
-        #     mask = misc.largest_cc(np.logical_not(mask))
-        #     idxs = np.vstack(np.where(mask == 1)).T
-        #     c_height_f[idxs[:, 0], idxs[:, 1]] = 0
-        #     d_height_f[idxs[:, 0], idxs[:, 1]] = 0
-
         #背景消除第三版：使用自适应阈值分割，参考图像是深度图
         if self._background_subtract :#TODO:修改条件
             thre_otsu, img_otsu = cv2.threshold(d_height_i,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)

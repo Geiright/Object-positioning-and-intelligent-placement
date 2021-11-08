@@ -30,10 +30,6 @@ def findcoord(img, threshold=185):
     
     thresh = cv2.GaussianBlur(img, (55, 51), 0)                                 # 高斯模糊，去除周边杂物
     _ , thresh2 = cv2.threshold(thresh, threshold, 255, cv2.THRESH_BINARY) 
-    '''plt.figure()
-    plt.subplot(1,2,1)    
-    plt.imshow(thresh2)
-    plt.show()  '''
 
     cnts = cv2.findContours(thresh2.copy(), cv2.RETR_EXTERNAL,
         cv2.CHAIN_APPROX_SIMPLE)
@@ -52,9 +48,6 @@ def findcoord(img, threshold=185):
         cv2.putText(img, "center", (cX - 20, cY - 20),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
     cv2.imwrite('out.jpg', img)
-    
-    #cv2.imshow('out',img)
-    #cv2.waitKey(20000)
 
 # python form2fit/code/infer_suction.py --weights form2fit/code/ml/savedmodel/epoch180.pth
 if __name__ == "__main__":
@@ -79,9 +72,8 @@ if __name__ == "__main__":
 
     #initilize model
     print("-------------loading model---------------")
-    #model = CorrespondenceNet(num_channels=2, num_descriptor=64, num_rotations=20)
+    
     model = SuctionNet(num_channels=2)
-    #model = torch.nn.DataParallel(model)
 
     #load weights
     state_dict = torch.load(os.path.join(opt.weights), map_location=device)
