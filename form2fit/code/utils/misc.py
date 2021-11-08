@@ -134,19 +134,37 @@ def process_mask(mask, erode=True, kernel_size=3):
     return mask
 
 
-def largest_cc(mask):
+# def largest_cc(mask):
+#     labels = label(mask)
+#     largest = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
+#     return largest
+
+
+# def mask2bbox(mask):
+#     rows = np.any(mask, axis=1)
+#     cols = np.any(mask, axis=0)
+#     rmin, rmax = np.where(rows)[0][[0, -1]]
+#     cmin, cmax = np.where(cols)[0][[0, -1]]
+#     return rmin, rmax, cmin, cmax
+
+def largest_cc(mask,bol2img=False):
+    '''
+    选出除0像素之外，最大的连通域
+    :param mask:一张图
+    :return: bool类型的矩阵，true部分对应的就是最大连通域
+    '''
     labels = label(mask)
     largest = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
+    if bol2img:
+        largest = largest.astype('uint8')*255
     return largest
 
-
-def mask2bbox(mask):
+def mask2bbox(mask):#寻找二值化图像的mask=1处的方框
     rows = np.any(mask, axis=1)
     cols = np.any(mask, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]
     cmin, cmax = np.where(cols)[0][[0, -1]]
     return rmin, rmax, cmin, cmax
-
 
 class AverageMeter(object):
     """Computes and stores the average and current value.

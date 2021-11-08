@@ -6,6 +6,8 @@
 #####################################################
 
 import sys
+
+from numpy.core.numeric import False_
 sys.path.append('/usr/local/lib/python3.6/pyrealsense2')
 
 import pyrealsense2 as rs
@@ -15,7 +17,7 @@ import time
 import json
 from torchvision import transforms
 from collections import Counter
-
+from form2fit.code.utils.mask import adap_get_desk
 def find_device_that_supports_advanced_mode() :
     DS5_product_ids = ["0AD1", "0AD2", "0AD3", "0AD4", "0AD5", "0AF6", "0AFE", "0AFF", "0B00", "0B01", "0B03", "0B07",
                        "0B3A", "0B5C"]
@@ -120,6 +122,7 @@ def depth_processing(depth_frame, decimation, spatial, temporal, hole_filling, d
 
     return filled_depth
     
+
 def initial_camera():
 
 
@@ -199,7 +202,7 @@ def get_curr_image(pipeline,align):
 
         # Remove background - Set pixels further than clipping_distance to grey
         depth_image = depth_image.astype('uint8')
-
+        depth_image,color_image = adap_get_desk(depth_image,color_image,0,False)
         # if depth_image.ndim == 3:
         #     if depth_image.shape[2]==3:
         #         depth_image = cv2.cvtColor(depth_image,cv2.COLOR_BGR2GRAY)

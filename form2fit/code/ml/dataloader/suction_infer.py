@@ -27,80 +27,9 @@ from torchvision import transforms
 from walle.core import RotationMatrix
 from form2fit import config
 from form2fit.code.utils import misc
-from skimage.measure import label
+from form2fit.code.utils.mask import remove_small_area
 #from get_align_img1012 import initial_camera,get_curr_image
 
-def remove_small_area(mask,area_th):
-    print(type(mask),mask.shape)
-    contours, hierarch = cv2.findContours(mask.astype('uint8'), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    for i in range(len(contours)):
-        area = cv2.contourArea(contours[i])
-        if area < area_th:
-            cv2.drawContours(mask, [contours[i]], 0, 0, -1)
-    return mask
-
-def remove_surrounding_white(mask,visual):
-    '''
-    在mask中，去掉贴着图像边缘的白色部分（通常是背景）
-    :param mask:
-    :param visual: 可视化
-    :return: mask：处理后的mask
-    '''
-    h,w = mask.shape
-    labels = label(mask)
-    if visual:
-        cv2.imshow('labels going to remove_surrounding_white',(labels*40).astype('uint8'))
-    num = np.max(labels)
-    if visual:
-        print('num in remove_surrounding_white',num)
-    if num > 1:#如果只有一个连通域，不需要处理
-        for i in range(num):
-            domain = np.where(labels==i+1,1,0)
-            if visual:
-                cv2.imshow('domain in remove_surrounding_white',(domain.astype('uint8'))*255)
-            rmin,rmax,cmin,cmax = mask2bbox(domain)
-            if rmin ==0 or rmax == h-1 or cmin == 0 or cmax == w-1:
-                labels = np.where(labels == i+1 , 0 , labels)
-        mask = np.where(labels !=0,mask,0)
-        if visual:
-            cv2.imshow('mask in remove_surrounding_white',mask)
-    return mask
-
-
-def remove_inner_black(mask,visual):
-    '''
-    在mask中去掉白色部分中间的黑色
-    :param mask:
-    :param visual: 可视化
-    :return: mask：处理后的mask
-    '''
-    h, w = mask.shape
-    mask = 255 - mask
-    labels = label(mask)
-    if visual:
-        cv2.imshow('labels going to remove_inner_black', (labels * 40).astype('uint8'))
-    num = np.max(labels)
-    if visual:
-        print('num in remove_inner_black', num)
-    for i in range(num):
-        domain = np.where(labels == i + 1, 1, 0)
-        if visual:
-            cv2.imshow('domain in remove_inner_black', (domain.astype('uint8')) * 255)
-        rmin, rmax, cmin, cmax = mask2bbox(domain)
-        if not (rmin == 0 or rmax == h - 1 or cmin == 0 or cmax == w - 1):
-            labels = np.where(labels == i + 1, 0, labels)
-    mask = np.where(labels != 0, mask, 0)
-    mask = 255 - mask
-    if visual:
-        cv2.imshow('mask in remove_inner_black', mask)
-    return mask
-
-def mask2bbox(mask):#寻找二值化图像的mask=1处的方框
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
-    cmin, cmax = np.where(cols)[0][[0, -1]]
-    return rmin, rmax, cmin, cmax
 
 class SuctionDataset(Dataset):
     """The suction network dataset.
