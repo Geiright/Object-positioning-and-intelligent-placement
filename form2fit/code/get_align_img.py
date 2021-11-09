@@ -202,7 +202,8 @@ def get_curr_image(pipeline,align):
 
         # Remove background - Set pixels further than clipping_distance to grey
         depth_image = depth_image.astype('uint8')
-        depth_image,color_image = adap_get_desk(depth_image,color_image,0,False)
+        color_image = color_image.astype('uint8')
+        
         # if depth_image.ndim == 3:
         #     if depth_image.shape[2]==3:
         #         depth_image = cv2.cvtColor(depth_image,cv2.COLOR_BGR2GRAY)
@@ -212,16 +213,16 @@ def get_curr_image(pipeline,align):
             if color_image.shape[2]==3:
                 color_image = cv2.cvtColor(color_image,cv2.COLOR_BGR2GRAY)
         #     #color_image = np.squeeze(color_image,axis=2)
-
+        depth_image,color_image = adap_get_desk(depth_image,color_image,1,False)
         # assert depth_image.shape == (480,848)
         # assert color_image.shape == (480,848)
         # H,W = depth_image.shape 
         # cv2.imshow('depth',depth_image)
         # cv2.imshow('depth',color_image)
-        print('color.shape',color_image.shape)
-        print('depth.shape',depth_image.shape)
-        cv2.imwrite('depth_image.png',depth_image)
-        cv2.imwrite('color_image.png',color_image)
+        # print('color.shape',color_image.shape)
+        # print('depth.shape',depth_image.shape)
+        # cv2.imwrite('final_depth_height.png',depth_image)
+        # cv2.imwrite('final_color_height.png',color_image)
         # cv2.waitKey()
         break
 

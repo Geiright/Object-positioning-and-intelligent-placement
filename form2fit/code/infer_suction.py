@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 
 from form2fit import config
-from form2fit.code.ml.dataloader import suction, suction_infer
+from form2fit.code.ml.dataloader import suction,suction_infer
 from form2fit.code.ml.models import SuctionNet
 from form2fit.code.ml.dataloader import get_corr_loader
 from form2fit.code.utils import ml, misc
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     print("--------------getting img----------------")
     
     if use_official:        # 官方dataloader
-        test_loader = suction.get_suction_loader(opt.root, dtype="train", batch_size=opt.batchsize, num_channels=2, sample_ratio=1, augment=False, shuffle=True, background_subtract=opt.background_subtract)
+        test_loader = suction.get_suction_loader(opt.root, dtype="infer", batch_size=opt.batchsize, num_channels=2, sample_ratio=1, augment=False, shuffle=True, background_subtract=opt.background_subtract)
         for batch_i, (imgs, labels) in enumerate(test_loader):
             imgs = imgs.to(device)
 
@@ -108,8 +108,7 @@ if __name__ == "__main__":
         cv2.imwrite(os.path.join(root,"final_depth_height.png"),d_height)
 
         test_loader = suction_infer.get_suction_loader(opt.root, dtype="infer", batch_size=opt.batchsize, num_channels=2, sample_ratio=1, augment=False, shuffle=False, background_subtract=opt.background_subtract)
-        for batch_i, imgs in enumerate(test_loader):
-            imgs = torch.unsqueeze(imgs, dim=0)
+        for batch_i, (imgs) in enumerate(test_loader):
             imgs = imgs.to(device)
 
             with torch.no_grad():
