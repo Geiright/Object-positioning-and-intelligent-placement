@@ -27,7 +27,7 @@ from torchvision import transforms
 from walle.core import RotationMatrix
 from form2fit import config
 from form2fit.code.utils import misc
-from form2fit.code.utils.mask import remove_small_area
+from form2fit.code.utils.mask import suction_background_substract
 #from get_align_img1012 import initial_camera,get_curr_image
 
 
@@ -124,34 +124,21 @@ class SuctionDataset(Dataset):
         assert d_height_i.shape==(480,424)
         # self._H, self._W = c_height_f.shape[:2]#
         
-        if self._background_subtract :#TODO:修改条件
+        if self._background_subtract :
+            c_height_i,d_height_i,c_height_f,d_height_f = suction_background_substract(c_height_i,d_height_i,c_height_f,d_height_f)
             
-            thre_otsu, img_otsu = cv2.threshold(d_height_i,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-            bool_otsu = misc.largest_cc(img_otsu)#largest_cc返回值是一个bool类型的矩阵
-            mask = np.zeros_like(d_height_i)
-            # cv2.imshow("otsu",(bool_otsu*255).astype('uint8'))
-            rmin,rmax,cmin,cmax = misc.mask2bbox(bool_otsu)
-            mask[rmin:rmax,cmin:cmax] = 1
-            c_height_i = np.where(mask, c_height_i, 0)
-            d_height_i = np.where(mask, d_height_i, 0)
-            # cv2.imshow('d_height_i', d_height_i)
-            # cv2.imshow('c_height_i', c_height_i)
-           
-            seg_img_obj = cv2.adaptiveThreshold(d_height_f, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV,401, 2)
-            # seg_img_obj = remove_inner_black(seg_img_objs)
-            # cv2.imshow('adap_gaus_inv',adap_thre_gaus_inv)
-            seg_img_obj = 255 - seg_img_obj
-            seg_img_obj = remove_small_area(seg_img_obj,700)
-            # seg_img_obj = remove_surrounding_white(seg_img_obj)
-            #本来是黑部分就设为黑色，然后把白色的桌面设成0
-            # mask = np.logical_or(bg_mask,desk_mask)
-            assert mask.shape == d_height_f.shape
-            c_height_f = np.where(mask,0,c_height_f)
-            d_height_f = np.where(mask,0,d_height_f)
 
         # convert depth to meters
         d_height_f = (d_height_f * 1e-3).astype("float32")
         d_height_i = (d_height_i * 1e-3).astype("float32")
+
+        if self._num_channels == 2:
+            c_height_i = c_height_i[..., np.newaxis]
+            c_height_f = c_height_f[..., np.newaxis]
+        else:  # clone the gray channel 3 times
+            c_height_i = np.repeat(c_height_i[..., np.newaxis], 3, axis=-1)
+            c_height_f = np.repeat(c_height_f[..., np.newaxis], 3, axis=-1)
+
         # convert heightmaps tensors
         c_height_i = self._c_norm(self._transform(c_height_i))#(W,H,1)or (W,H,3)
         c_height_f = self._c_norm(self._transform(c_height_f))
@@ -168,46 +155,7 @@ class SuctionDataset(Dataset):
         #img_tensor = torch.stack([img_tensor_i, img_tensor_f], dim=0)#shape == (2,2,W,H)
         assert img_tensor.shape ==(2,2,480,424)
 
-        #第一个2是kit和obj；第二个2是color和depth
-        ########################img_tensor is going to be returned##################################
-
-        # # offset indices to adjust for splitting
-        # pos_suction_i[:, 1] = pos_suction_i[:, 1] - self._half
-        #
-        # pos_f = []
-        # for pos in pos_suction_f:  # len(pos_suction_f) == N
-        #     rr, cc = circle(pos[0], pos[1], self._radius)
-        #     pos_f.append(np.vstack([rr, cc]).T)
-        # pos_suction_f = np.concatenate(pos_f)
-        # pos_i = []
-        # for pos in pos_suction_i:  # len(pos_suction_i) == 1
-        #     rr, cc = circle(pos[0], pos[1], self._radius)
-        #     pos_i.append(np.vstack([rr, cc]).T)
-        # pos_suction_i = np.concatenate(pos_i)
-        #
-        # # add columns of 1 (positive labels)
-        # pos_label_i = np.hstack((pos_suction_i, np.ones((len(pos_suction_i), 1))))
-        # pos_label_f = np.hstack((pos_suction_f, np.ones((len(pos_suction_f), 1))))
-        #
-        # # generate negative labels
-        # neg_suction_i = np.vstack(self._sample_negative(pos_label_i)).T
-        # neg_label_i = np.hstack((neg_suction_i, np.zeros((len(neg_suction_i), 1))))
-        # neg_suction_f = np.vstack(self._sample_negative(pos_label_f)).T
-        # neg_label_f = np.hstack((neg_suction_f, np.zeros((len(neg_suction_f), 1))))
-        #
-        # # stack positive and negative into a single array
-        # label_i = np.vstack((pos_label_i, neg_label_i))
-        # label_f = np.vstack((pos_label_f, neg_label_f))
-        #
-        # # convert suction points to tensors
-        # label_tensor_i = torch.LongTensor(label_i)
-        # label_tensor_f = torch.LongTensor(label_f)
-        # label_tensor = [label_tensor_i, label_tensor_f]
         
-        # img1 = img_tensor_i[0,:,:]
-        # img1 = np.expand_dims(img1, axis=2)
-        # print(img1.shape)
-        # cv2.imwrite("img1.jpg", img1)
         return img_tensor
 
 
@@ -245,7 +193,7 @@ def get_suction_loader(
 
         This is to support variable length suction labels.
         """
-        imgs = [b[0] for b in batch]
+        imgs = [b for b in batch]
         #labels = [b[1] for b in batch]
         imgs = torch.cat(imgs, dim=0)
         #labels = [l for sublist in labels for l in sublist]

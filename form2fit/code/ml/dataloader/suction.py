@@ -21,6 +21,7 @@ from torchvision import transforms
 from walle.core import RotationMatrix
 from form2fit import config
 from form2fit.code.utils import misc
+from form2fit.code.utils.mask import suction_background_substract
 
 
 class SuctionDataset(Dataset):
@@ -266,29 +267,8 @@ class SuctionDataset(Dataset):
             pos_suction_f = (affine @ np.hstack((pos_suction_f, np.ones((len(pos_suction_f), 1)))).T).T
 
         #背景消除第三版：使用自适应阈值分割，参考图像是深度图
-        if self._background_subtract :#TODO:修改条件
-            thre_otsu, img_otsu = cv2.threshold(d_height_i,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-            bool_otsu = misc.largest_cc(img_otsu)#largest_cc返回值是一个bool类型的矩阵
-            mask = np.zeros_like(d_height_i)
-            # cv2.imshow("otsu",(bool_otsu*255).astype('uint8'))
-            rmin,rmax,cmin,cmax = misc.mask2bbox(bool_otsu)
-            mask[rmin:rmax,cmin:cmax] = 1
-            c_height_i = np.where(mask, c_height_i, 0)
-            d_height_i = np.where(mask, d_height_i, 0)
-            # cv2.imshow('d_height_i', d_height_i)
-            # cv2.imshow('c_height_i', c_height_i)
-           
-            #对于物体，使用大津算法没有作用,使用高斯自适应阈值
-            adap_thre_gaus_inv = cv2.adaptiveThreshold(d_height_f, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,401, 2)
-            # cv2.imshow('adap_gaus_inv',adap_thre_gaus_inv)
-            adap_thre_gaus = 255 - adap_thre_gaus_inv
-            #本来是黑部分就设为黑色，然后把白色的桌面设成0
-            bg_mask = misc.largest_cc(adap_thre_gaus_inv)
-            desk_mask = misc.largest_cc(adap_thre_gaus)
-            mask = np.logical_or(bg_mask,desk_mask)
-            assert mask.shape == d_height_f.shape
-            c_height_f = np.where(mask,0,c_height_f)
-            d_height_f = np.where(mask,0,d_height_f)
+        if self._background_subtract :
+            c_height_i,d_height_i,c_height_f,d_height_f = suction_background_substract(c_height_i,d_height_i,c_height_f,d_height_f)
 
         # convert depth to meters
         d_height_f = (d_height_f * 1e-3).astype("float32")
@@ -330,7 +310,7 @@ class SuctionDataset(Dataset):
         label_tensor_i = torch.LongTensor(label_i)
         label_tensor_f = torch.LongTensor(label_f)
         label_tensor = [label_tensor_i, label_tensor_f]
-
+        assert img_tensor.shape ==(2,2,480,424)
         return img_tensor, label_tensor
 
 
