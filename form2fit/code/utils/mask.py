@@ -129,3 +129,25 @@ def adap_get_desk(dimg,cimg, ref_type,visual):
         cv2.imshow('dimg_i',dimg)
         cv2.imshow('cimg_i', cimg)
     return dimg,cimg
+
+
+def suction_background_substract(c_height_i,d_height_i,c_height_f,d_height_f):
+    #吸取网络在训练和推断的共有步骤
+
+    #对盒子分割
+    _, img_otsu = cv2.threshold(d_height_i,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    bool_otsu = largest_cc(img_otsu)#largest_cc返回值是一个bool类型的矩阵
+    mask_kit = np.zeros_like(d_height_i)
+    rmin,rmax,cmin,cmax = mask2bbox(bool_otsu)
+    mask_kit[rmin:rmax,cmin:cmax] = 1
+    c_height_i = np.where(mask_kit, c_height_i, 0)
+    d_height_i = np.where(mask_kit, d_height_i, 0)
+    #对物体分割
+    mask_obj = cv2.adaptiveThreshold(d_height_f, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,401, 2)
+    mask_obj = 255 - mask_obj
+    mask_obj = remove_small_area(mask_obj,500)
+
+    assert mask_obj.shape == d_height_f.shape
+    c_height_f = np.where(mask_obj,0,c_height_f)
+    d_height_f = np.where(mask_obj,0,d_height_f)
+    return c_height_i,d_height_i,c_height_f,d_height_f
