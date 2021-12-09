@@ -15,7 +15,10 @@
 数据集形式不变，环境的安装方法与原form2fit相同，具体在[Deltademo](https://github.com/Geiright/Deltademo)/**docs**/setup.md参阅
 
 数据集放在[Deltademo](https://github.com/Geiright/Deltademo)/[form2fit](https://github.com/Geiright/Deltademo/tree/master/form2fit)/[code](https://github.com/Geiright/Deltademo/tree/master/form2fit/code)/[ml](https://github.com/Geiright/Deltademo/tree/master/form2fit/code/ml)/**dataset**/
-
+11.12 数据集下载地址：
+链接：(https://pan.baidu.com/s/1bgmDwMca-VCnwcaeMu9TKA)
+提取码：[omuf]
+--来自百度网盘超级会员V3的分享
 # Weights
 权重在[Deltademo](https://github.com/Geiright/Deltademo)/[form2fit](https://github.com/Geiright/Deltademo/tree/master/form2fit)/[code](https://github.com/Geiright/Deltademo/tree/master/form2fit/code)/[ml](https://github.com/Geiright/Deltademo/tree/master/form2fit/code/ml)/**savedmodel**/，目前全是吸取网络的权重
 
