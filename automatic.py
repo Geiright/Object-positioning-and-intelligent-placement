@@ -14,11 +14,11 @@ from HitbotInterface import HitbotInterface
 # from form2fit.code.get_align_img import initial_camera,get_curr_image
 import pyrealsense2 as rs        
 
-def rand_coords(radius=6400):   
+def rand_coords(radius=5000):   
     randcoords = []                                                         # 存放生成的坐标
     # sqs = []                                                                # 暂存x y 的点值
-    x1 = random.uniform(95, 250)
-    y1 = random.uniform(-200, -40)
+    x1 = random.uniform(80, 250)
+    y1 = random.uniform(-180, -40)
     sq1 = (x1 ** 2) + (y1 ** 2)
     randomrz = int(random.uniform(0, 90))                                   # 随机生成坐标,以及旋转角度，输出[x,y,z], rz
     randcoords.append(((int(x1), int(y1), -92), randomrz))
@@ -92,7 +92,7 @@ def auto_collection():
     camcoord1 = world2pixel(coord1)
     points.append(camcoord1)                            # coord1 三维坐标对应的像素坐标 camcoord1
 
-    a = robot.new_movej_xyz_lr(coord1[0], coord1[1], coord1[2] + 40, 150,80,0,1)      # 机械臂准备吸取
+    a = robot.new_movej_xyz_lr(coord1[0], coord1[1], coord1[2] + 40, 150,80,0,1)      # 机械臂准备吸取  (盒子这边是1，物块那一边是-1)
     robot.wait_stop()
     if a == 1: print("moving") 
     else: print("error, code is {}".format(a))
@@ -144,8 +144,9 @@ def auto_collection():
         else: print("error, code is {}".format(a))
         time.sleep(0.5)
         
-        robot.new_movej_xyz_lr(150, 100, 20,    0,    70, 0,  1)                     # 机械臂回原位置
+        a = robot.new_movej_xyz_lr(box_pos[0], box_pos[1], -34,    0,    80, 0,  1)                     # 机械臂回原位置
         robot.wait_stop()
+        if a != 1: print("the robot can't return to the box_pos.a={}".format(a))
         frames = pipeline.wait_for_frames()                                            
         color_frame = frames.get_color_frame()
         color_image = np.asanyarray(color_frame.get_data())                             # 记录图像
@@ -154,7 +155,7 @@ def auto_collection():
         angles1 = rz1                 #计算旋转角度，并存储
         angles.append(angles1)  
         time.sleep(1)
-
+        
 def recollection():
     coord1, rz1= randcoords[batch]                      # 得到第一个吸取位置
     chosenum = findcoords[batch]
@@ -198,8 +199,9 @@ def recollection():
     else: print("error, code is {}".format(a))
     time.sleep(0.5)
     
-    robot.new_movej_xyz_lr(150, 100, 20,    0,    80, 0,  1)                     # 机械臂回原位置
+    a = robot.new_movej_xyz_lr(other_pos[0], other_pos[1], -34,    0,    80, 0,  1)                     # 机械臂回原位置
     robot.wait_stop()
+    if a != 1: print("the robot can't return to the box_pos.a={}".format(a))
     time.sleep(1)
 
 if __name__ == "__main__":
@@ -221,7 +223,9 @@ if __name__ == "__main__":
     d = ([170.81, 56.61, -74.39], 'prism')
     coordlist = (a, b, c, d)
     
-
+    # init position
+    box_pos = [38.8947, 297.8216, -39.5755]
+    other_pos = [60.3044, -237.1843, -39.5755]
     
     print("---------------init camera---------------")
     pipeline = rs.pipeline()
@@ -241,7 +245,7 @@ if __name__ == "__main__":
         print("The demo requires Depth camera with Color sensor")
         exit(0)
 
-    #config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 30)
+    config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 10)
 
     if device_product_line == 'L500':
         config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 10)
@@ -272,7 +276,7 @@ if __name__ == "__main__":
 
     if robot.is_connect():
         print("robot online")
-        a = robot.new_movej_xyz_lr(90, 90, -20, 0, speed=80, roughly=0, lr=1)
+        a = robot.new_movej_xyz_lr(box_pos[0], box_pos[1], -34, 0, speed=80, roughly=0, lr=1)
         print("robot statics is {}".format(a))
         time.sleep(1)
 
