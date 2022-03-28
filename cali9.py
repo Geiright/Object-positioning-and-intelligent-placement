@@ -8,6 +8,7 @@ from torch import int32
 from serialcontrol2 import pump_off
 from walle.core import RotationMatrix
 from HitbotInterface import HitbotInterface
+from form2fit.code.utils import analyse_shape
 from form2fit.code.utils import get_center
 from form2fit.code.get_align_img import initial_camera,get_curr_image
 
@@ -139,10 +140,10 @@ def rand_coords(epoch=100, radius=4200):
 
 
 
-def arm_placement(robot, coord2, rz1=0):
+def arm_placement(robot, coord2, rz1=0, hand=-1):# hand为-1，则为物体部分。1为盒子部分
     box_pos = [-64.6159, 269.41, -39]            # 不遮挡相机拍摄的机械臂位置，每次结束放置后移动至该位置。
     time.sleep(0.5) 
-    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,-1)    # 机械臂准备放置
+    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,hand)    # 机械臂准备放置
     robot.wait_stop()
     print("ready to place: coord value {}, speed 70\n".format(coord2))
     if a == 1: print("moving") 
@@ -151,7 +152,7 @@ def arm_placement(robot, coord2, rz1=0):
         raise RuntimeError("arm cannot move to the location {}".format(coord2))
     time.sleep(0.5)
     print("::placing, coord value {}, speed 70\n".format(coord2))
-    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2]-5 , rz1,100,0,-1)       # 机械臂放置.z轴如果空中放置则-1，多线程放置则-5
+    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2]-5 , rz1,100,0,hand)       # 机械臂放置.z轴如果空中放置则-1，多线程放置则-5
     robot.wait_stop()
     if a == 1: print("moving") 
     else: print("error, code is {}".format(a))
@@ -160,7 +161,7 @@ def arm_placement(robot, coord2, rz1=0):
     time.sleep(0.5)
 
     print("::send_coords, coord value {}, speed 70\n".format(coord2))
-    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,-1)      # 机械臂抬起
+    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,hand)      # 机械臂抬起
     robot.wait_stop()
     if a == 1: print("moving") 
     else: print("error, code is {}".format(a))
@@ -310,7 +311,6 @@ def autocali2():                                    # 用于机械臂的自动�
         objpoints.append([coord2[0], coord2[1]])
         print("objpoint [{}, {}] no.{}".format(coord2[0], coord2[1], i))
         color_image,_ = get_curr_image(pipeline, align)                                      # 记录图像
-        cv2.imwrite("test.jpg", color_image)
         center = get_center.get_center(color_image)                                                       # 求质心
         imgpoints.append(center)
         allpoints.append([center[0], center[1], coord2[0], coord2[1], -98])
@@ -359,6 +359,9 @@ if __name__ == '__main__':
     cam = np.float32([[375, 167]])
     print(cam.shape)
     print(c2b(M, cam))
+
+    
+
     print("---------------init camera---------------")
     pipeline, align = initial_camera()
     
@@ -393,12 +396,30 @@ if __name__ == '__main__':
         time.sleep(0.5)
 
     color_image,_ = get_curr_image(pipeline, align)                                      # 记录图像
-    center = get_center.get_center(color_image)                                                       # 求质心
-    print("center is {}".format(center))
-    center = np.float32(center)
-    center_re = center.reshape(1,2)
-    center_arm = c2b(M, center_re)
-    print("center_arm is {}".format(center_arm))
-    coord2 = [center_arm[0][0], center_arm[0][1], -92]
-    
-    arm_suction(robot, coord2)                               # 机械臂把物体吸起，准备下一回合。
+    cv2.imwrite("test.jpg", color_image)
+
+    obj_list = analyse_shape.get_info_for_arm(color_image)             # obj_list [['circle', (278, 194), 0], ['triangle', (335, 324), 78.01278750418338]]
+    for obj in obj_list:
+        center = obj[1]
+        rz1 = obj[2]
+        if obj[0] == 'circle':
+            coord2 = [98.27, 182.8504, -66.39]
+        elif obj[0] == 'square':
+            coord2 = [173.5626, 179.799, -66.39]
+        elif obj[0] == 'triangle':
+            coord2 = [163.57, 104.0825, -66.39]
+        elif obj[0] == 'pentagon':
+            coord2 = [95.1082, 104.0858, -66.39]                # coord2代表放置位置
+        else:
+            raise RuntimeError("Can not identify the item.")
+        
+
+        print("center is {}".format(center))
+        center = np.float32(center)
+        center_re = center.reshape(1,2)
+        center_arm = c2b(M, center_re)
+        print("center_arm is {}".format(center_arm))
+        coord1 = [center_arm[0][0], center_arm[0][1], -96]      # coord1代表吸起位置
+        
+        arm_suction(robot, coord1, rz2=0)                               # 机械臂把物体吸起
+        arm_placement(robot, coord2, rz1=-rz1, hand=1)                   # 机械臂把物体放下
