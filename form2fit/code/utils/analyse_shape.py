@@ -4,6 +4,7 @@ import math
 import os
 import form2fit.config as cfg
 from skimage.measure import label
+
 '''
 分析盒外物体的位置\形状\角度
 原理:1.在HSV分割出物体mask
@@ -11,7 +12,6 @@ from skimage.measure import label
 3.位置:直接计算质心,升级:根据上一步的形状生成一个规则的多边形,寻找最贴切的位置,输出规则多边形的中心
 4.角度:输出规则多边形的角度
 '''
-
 
 
 def remove_small_area(mask, area_th,visual, message):
@@ -96,10 +96,6 @@ def remove_scattered_pix(mask,th,visual):
     if visual:
         cv2.imshow('after remove_single_pix', mask)
     return mask
-
-def remove_single_pix_new(mask,visual):
-    pass
-
 
 
 def mask2bbox(mask):
@@ -331,11 +327,12 @@ def close_morph(mask,kernel_size,iterations):
     return close_mask
 
 
-def get_half_centroid_mask(mask, left_half):
+def get_half_centroid_mask(mask, left_half, tole):
     '''
-    根绝left_half的真假情况,去掉中心点在右半边或左半边的连通域
+    根绝left_half的真假情况,去掉中心点在右半边或左半边的连通域,
     :param mask:二值化mask
     :param left_half:是否要保留左半边的连通域
+    :param tole:对额外偏移的容忍
     :return:
     '''
     w = mask.shape[1] #图片的宽
@@ -343,7 +340,7 @@ def get_half_centroid_mask(mask, left_half):
     contours = get_exter_contours(mask, 'none')
     for cnt in contours:
         cx,cy = get_centroid(cnt)
-        if (left_half and cx > w_half) or (not left_half and cx < w_half):
+        if (left_half and cx > w_half + tole) or (not left_half and cx < w_half - tole):
             cv2.drawContours(mask, [cnt], 0, 0, -1)
     return mask
 
@@ -351,7 +348,7 @@ def get_half_mask(mask,left_half, tole):
     h = mask.shape[0]
     w = mask.shape[1]
     w_half = int(w // 2)
-    if left_half :
+    if left_half:
         mask = np.hstack((mask[:, :w_half+tole], np.zeros((h, w_half-tole))))
     else:
         mask = np.hstack((np.zeros((h, w_half - tole)), mask[:, w_half - tole:]))
@@ -377,7 +374,7 @@ def color_space_get_all_obj(img,k, color_space_name, range_dict, visual,message)
     mask_obj = dilate(mask_obj,3, 4)
     mask_obj = cv2.medianBlur(mask_obj, k)
     mask_obj = remove_inner_black(mask_obj,False)
-    mask_obj = get_half_centroid_mask(mask_obj, left_half=True)
+    mask_obj = get_half_centroid_mask(mask_obj, left_half=True, tole=50)
     if visual:
         cv2.imshow('{} mask_all_obj'.format(message), mask_obj)
     return mask_obj
@@ -934,11 +931,10 @@ def detect_line_houghP(mask, threshod, max_line_gap, visual, message):
         cv2.imshow('houghP_line_{}'.format(message), line_mask)
     return lines, line_mask
 
-# def adap_
 
 def adap_detct_max_line_hough(mask, min_line_len, visual):
     # 自动检测全局最长的线段
-    adap_th = 20
+    adap_th = min_line_len
     lines = cv2.HoughLines(mask, 1, np.pi / 180, adap_th)
     if lines is None:
         return None, None
@@ -950,17 +946,19 @@ def adap_detct_max_line_hough(mask, min_line_len, visual):
             adap_th -= 1
             lines = cv2.HoughLines(mask, 1, np.pi / 180, adap_th)
         # 现在lines的数量是可以检测出来的符合条件的最长线段的个数，可能为1,2,3...
+        if lines is None:
+            return None, None
     if visual:
         line_mask = mask.copy()
         line_mask = draw_lines(lines, line_mask, 255, 1, True, 'hough detected Max len line')
     return lines, np.repeat(np.array([adap_th]), len(lines)) #同时返回这些线的长度
 
-def adap_detect_all_line_hough(mask, min_lin_len, visual):
+def adap_detect_all_line_hough(mask, min_line_len, visual):
     # 自动分组检测每组最长线段
     # 检测出最长的线段后去掉该线段，去噪点继续检测，直到无线可检
     detect_mask = mask.copy()
 
-    max_lines, max_len = adap_detct_max_line_hough(detect_mask, 10, False)
+    max_lines, max_len = adap_detct_max_line_hough(detect_mask, min_line_len, False)
     all_max_lines = max_lines
     all_max_len = max_len
     if max_lines is None: # 找不到任何直线
@@ -968,7 +966,7 @@ def adap_detect_all_line_hough(mask, min_lin_len, visual):
     #找到所有方向的最长线段
     while True:
         draw_lines(max_lines, detect_mask, 0, 2, False, 'after remove one mask line')
-        max_lines, max_len = adap_detct_max_line_hough(detect_mask, min_lin_len, False)
+        max_lines, max_len = adap_detct_max_line_hough(detect_mask, min_line_len, False)
         if max_lines is None:
             break
         else:
@@ -1320,11 +1318,21 @@ def get_lines_group_by_rho(lines, mask_shape,tolerance_rho):
     # print('get_lines_group_by_rho')
     # 按距离分组：排序hough，相差30个像素点之内的所有直线分为一组\
     # tolerance_rho = 40  # 容忍距离波动
+    def lines_are_far(line1, line2, tolerance_rho):
+        if np.abs(line1[0,1] - line2[0,1]) > (30 * np.pi/ 180):
+            # TODO: 当线段几近垂直而分跨pi两侧时, rho的绝对值之差较大,
+            if np.abs(np.abs(line1[0,0]) - np.abs(line2[0,0])) > tolerance_rho:
+                return True
+        else:
+            if np.abs(line1[0,0] - line2[0,0]) > tolerance_rho:
+                return True
+        return False
     groups = [[] for i in range(2)]
     groups[0].extend(lines[0][np.newaxis, :])
     for i in range(1, len(lines)):
         # 检查lines[0]和lines[i]是否有交点，如果图片上没交点且距离大于阈值，认为是两组
-        if (np.abs(lines[i][0,0] - lines[0][0,0]) > tolerance_rho) and not cross_in_pic(lines[0, :, :2], lines[i, :, :2], mask_shape):
+        # TODO: 当线段倾斜于原点,正好同角度分跨原点两侧时, rho要比较原值
+        if lines_are_far(lines[i], lines[0], tolerance_rho) and not cross_in_pic(lines[0, :, :2], lines[i, :, :2], mask_shape):
             groups[1].extend(lines[i][np.newaxis, :])
         else:
             groups[0].extend(lines[i][np.newaxis, :])
@@ -1413,8 +1421,12 @@ def remove_none_in_list(none_list):
 def get_cross_point(line1, line2):
     # print('line1',line1)
     # print('line2', line2)
-    rho1, theta1 = line1[0]
-    rho2, theta2 = line2[0]
+    if line1.ndim == 1:
+        rho1, theta1 = line1
+        rho2, theta2 = line2
+    if line1.ndim == 2:
+        rho1, theta1 = line1[0]
+        rho2, theta2 = line2[0]
     # 直线方程为 sin(theta)*y + cos(theta)*x = rho
     a = np.mat([[np.sin(theta1), np.cos(theta1)],
                 [np.sin(theta2), np.cos(theta2)]])
@@ -1537,6 +1549,21 @@ def get_each_mask(mask, visual):
     return each_mask_list
 
 
+def hsv_get_whole_kit(img_hsv, visual):
+    kit_lower = np.array([0, 0, 0])
+    kit_upper = np.array([180, 255, 46])
+    mask_kit = cv2.inRange(img_hsv, kit_lower, kit_upper)
+    mask_kit = largest_cc(mask_kit, True)
+    # mask_kit = remove_small_area(mask_kit, 250, False, '')
+    # mask_kit = remove_surrounding_white(mask_kit,False)
+    # mask_kit = remove_inner_black(mask_kit,True)
+    # mask_kit = remove_small_area(mask_kit,250)
+    if visual:
+        cv2.imshow('mask_kit',mask_kit)
+    return mask_kit
+
+
+
 def get_obj_mask(image, only_upper_surface):
     # 生成用来去噪的mask
     if only_upper_surface:
@@ -1552,10 +1579,10 @@ def get_obj_mask(image, only_upper_surface):
     return mask_hsv, mask_lab
 
 def get_convinced_mask(mask_hsv,mask_lab):
-    all_mask = get_intersection(mask_hsv, mask_lab, False, 'two_mask')
+    all_mask = get_union(mask_hsv, mask_lab, False, 'two_mask')
     all_mask = remove_big_area(all_mask, 30000, False, 'after remove big area')
-    all_mask = remove_small_area(all_mask, 1000, False, '')
-    all_mask = get_half_centroid_mask(all_mask, True)
+    all_mask = remove_small_area(all_mask, 3000, False, '')
+    all_mask = get_half_centroid_mask(all_mask, True, 80)
     return all_mask.astype('uint8')
 
 
@@ -1603,7 +1630,7 @@ def get_all_edge(image, restrict_mask, visual):
 
     all_edge = get_intersection(all_edge, restrict_mask, False, 'all')
     # all_edge = remove_scattered_pix(all_edge, 5, False)
-    all_edge = get_half_mask(all_edge,True, 20)
+    all_edge = get_half_mask(all_edge,True, 70)
     # all_edge = close_morph(all_edge, 3, 1)
     if visual:
         cv2.imshow('all_edge', all_edge)
@@ -1668,7 +1695,9 @@ def get_uppersurface_edge_lines(lines, lens, obj_mask, center, visual):
         all_group_distance.append(group_distance)
         min_index = np.argmin(group_distance)
         all_min_index.append(min_index)
+
     groups = remove_none_in_list(groups)
+
     assert len(all_min_index) == len(groups)
     assert len(all_min_index) == len(all_group_distance)
     # 去除外部边缘线：当一个组有两条或以上的线，对其中每条线进行判断，如果满足以下条件，则认为是底面边缘，不保留
@@ -1687,7 +1716,6 @@ def get_uppersurface_edge_lines(lines, lens, obj_mask, center, visual):
             sorted_idx = np.argsort(group_diff_pix)
             group_diff_pix = group_diff_pix[sorted_idx]
             group = group[sorted_idx]
-
             # 如果开头几个是相同的diff_pix值，则分两种情况：
             #   当两者之间的距离绝对值大于10时，取其中那个距离中心更近的线，其余的忽略
             #   否则，取其中更远的线
@@ -1701,7 +1729,7 @@ def get_uppersurface_edge_lines(lines, lens, obj_mask, center, visual):
                 else:
                     max_dist_line = group[1]
                     min_dist_line = group[0]
-                if abs(group_distance[0] - group_distance[1]) < 10:
+                if abs(group_distance[0] - group_distance[1]) < 7:
                     # print('have same diff_pix and they are close')
                     # print('group_distance[0] - group_distance[1]',group_distance[0] - group_distance[1])
                     # print(group_distance[0], group_distance[1])
@@ -1711,11 +1739,11 @@ def get_uppersurface_edge_lines(lines, lens, obj_mask, center, visual):
                     # print('have same diff_pix and they are far')
                     # print('group_distance[0] - group_distance[1]', group_distance[0] - group_distance[1])
                     # print(group_distance[0], group_distance[1])
+
             else:
                 all_uppersurface_line.append(group[0])
         else:
             all_uppersurface_line.append(group[0])
-
     mask = np.zeros(obj_mask.shape)
     all_uppersurface_line = np.array(all_uppersurface_line)
     draw_lines(all_uppersurface_line[:,:,:2], mask, 255, 1, False, 'after choose all uppersurface line')
@@ -2257,53 +2285,109 @@ def connect_breakpoint_old(edge_mask, visual):
         cv2.imshow('after connect break point', edge_mask)
     return edge_mask
 
-def get_info_for_arm(image):                    # obj_list [['circle', (278, 194), 0], ['triangle', (335, 324), 78.01278750418338]]    
-    w, h, c = image.shape
+
+def confirm_circle(mask_list):
+    circle_list = []
+    for mask in mask_list:
+        circles = get_convinced_circle(mask)
+        if circles is None:
+            continue
+        elif len(circles) == 1:
+            circle_list.append(circles[0])
+        else:
+            # 取圆心靠左的圆柱
+            left_index = np.argmin(circles[:][0])
+            circle_list.append(circles[left_index])
+    circle_list = np.array(circle_list)
+
+    return circle_list[np.argmin(circle_list[:, 0])]
+
+
+def get_info_for_arm(image, visual):
+    # 用于输出给机械臂的信息
+    # 如果visual = True，在本函数之后加上cv2.waitKey(),即可看到框出各物体上表面的绿色边缘以及物体类别
     mask_hsv, mask_lab = get_obj_mask(image, False)
     all_mask = get_convinced_mask(mask_hsv, mask_lab)
     each_mask_list = get_each_mask(all_mask, False)
     all_edge = get_all_edge(image, all_mask, False)
-
-    obj_list = []
+    obj_list = []  # 给机械臂的信息
+    obj_dict = {}  # 用于显示图像的信息
     for each_mask in each_mask_list:
-        # 求中心点
         contours = get_exter_contours(each_mask, 'simple')
         cnt = contours[0]
         mask_center = get_centroid(cnt)
         # 边缘处理
-        each_edge = get_intersection(all_edge, each_mask, False, '')
-
-        hsv_image = (convert_image(image, 'lab')[..., 0]).astype('uint8')
-        hsv_mask = get_intersection(hsv_image, each_mask, False, 'hsv_mask for circlr')
-        circles = get_convinced_circle(hsv_mask)  # 返回的是(N,3)数组
+        each_edge = get_intersection(all_edge, each_mask, False, 'one obj edge')
+        lab_image = (convert_image(image, 'lab')[..., 0]).astype('uint8')
+        lab_image_part = get_intersection(lab_image, each_mask, False, 'lab_circle')
+        circles = get_convinced_circle(lab_image_part)  # 返回的是(N,3)数组
         if circles is not None:
-            print('circle')
+            # 能检测到圆形， 说明起码是有圆
+            # 加上对侧边的删除
+            # 圆形需要连接
+            hsv_image = (convert_image(image, 'hsv')[..., 2]).astype('uint8')
+            the_circle = confirm_circle([hsv_image, lab_image])
             obj_list.append(['circle', mask_center, 0])
+            obj_dict['circle'] = [(the_circle[0], the_circle[1]), 0, the_circle[2]]
         else:
             # 是正多边形
-            print('not circle')
-            all_lines, all_len = adap_detect_all_line_hough(each_edge, 10, False)
-            print('all_lines',all_lines)
-            all_lines, uppersurface_mask = get_uppersurface_edge_lines(all_lines, all_len, each_mask, mask_center, False)
+            # detect_line_hough(each_edge, 20, True)
+            all_lines, all_len = adap_detect_all_line_hough(each_edge, 20, False)
+            all_lines, uppersurface_mask = get_uppersurface_edge_lines(all_lines, all_len, each_mask, mask_center,
+                                                                       False)
             # 把直线萎缩成线段
             all_lines = get_adjacent_lines(all_lines, each_mask)
             vertex_coords, edge_segment_mask = get_proper_segment_lines(all_lines, each_edge.shape, 255, 1, False)
             put_mask_on_img(edge_segment_mask, image, False, 'upper surface edge segment')
             # 从线的角度得到要旋转的角度
             geometry_shape = detect_shape_by_line_count(all_lines)
-            # rot_theta = get_rot_theta(vertex_coords, center, (w, h), edge_segment_mask, True)
             rot_theta = get_rot_theta_old(edge_segment_mask, vertex_coords, True)
-            obj_list.append([geometry_shape, mask_center, rot_theta * 180 / np.pi])
             cv2.waitKey()
-    print("obj_list", obj_list)
+            x, y = get_centroid(edge_segment_mask)
+            obj_list.append([geometry_shape, mask_center, rot_theta * 180 / np.pi])
+            obj_dict[geometry_shape] = [(x, y), rot_theta, vertex_coords]
+
+
+    if visual:
+        image = draw_label_on_image(image, obj_dict, visual)
     return obj_list
 
 
+def get_kit_edge(image, visual):
+    kit_edge = get_edge_canny(image, 'hsv', 2, 25, 45, False)
+    kit_edge = get_half_mask(kit_edge, False, 30).astype('uint8')
+    hsv_image = convert_image(image, 'hsv')
+    kit_mask = hsv_get_whole_kit(hsv_image, False)
+    kit_mask = dilate(kit_mask, 3, 1)
+    kit_edge = get_intersection(kit_edge, kit_mask, False, 'of kit')
+    all_kit_lines, all_kit_linelen = adap_detect_all_line_hough(kit_edge, 100, visual)
+    return all_kit_lines, all_kit_linelen
+
+def get_the_kit_loc_line(kit_lines):
+    #分别取出最左边的垂直竖线(侧面露出来的底线)和最下方的水平横线 用来定位盒子
+    vertical_line = kit_lines[np.where(np.logical_or(np.pi - kit_lines[..., 1] < 10 * np.pi / 180, kit_lines[..., 1] < 10 * np.pi / 180))]
+    vertical_line = vertical_line[np.argmin(np.abs(vertical_line[..., 0]))]
+    hori_line = kit_lines[np.where(np.abs(np.pi /2 - kit_lines[..., 1]) < 10 * np.pi / 180)]
+    hori_line = hori_line[np.argmax(np.abs(hori_line[..., 0]))]
+    return vertical_line, hori_line
+
+def get_kit_offset(now_kit, ref_kit):
+    now_kit_lines, now_kit_linelen = get_kit_edge(now_kit, False)
+
+    now_verti_line, now_hori_line = get_the_kit_loc_line(now_kit_lines)
+    now_left_bottom = get_cross_point(now_verti_line, now_hori_line)
+    ref_kit_lines, ref_kit_linelen = get_kit_edge(ref_kit, False)
+    ref_verti_line, ref_hori_line = get_the_kit_loc_line(ref_kit_lines)
+    ref_left_bottom = get_cross_point(ref_verti_line, ref_hori_line)
+    offset_x = now_left_bottom[0] - ref_left_bottom[0]
+    offset_y = now_left_bottom[1] - ref_left_bottom[1]
+    # 分别返回现在相对ref_kit中盒子的位移,向右和向下为正
+    return offset_x, offset_y
 
 if __name__ == "__main__":
 
     top_dir = os.path.join(cfg.data_root, cfg.data_type)
-    img_dir = os.path.join(cfg.data_root,'img')
+    img_dir = os.path.join(cfg.data_root,'img','error')
     # points_dit = os.path.join(cfg.data_root,'points')
     rgb_image_num = len(os.listdir(img_dir))//2
     pixel_range = []
@@ -2322,114 +2406,97 @@ if __name__ == "__main__":
     #     dict['{}'.format(i)] = 0
 
     color_space_name = 'hsv'
-    for i in range(7, rgb_image_num, 8):#range(7,rgb_image_num,8)
+    for i in range(5,8):#range(7,rgb_image_num,8)
         # if not os.path.exists(os.path.join(img_dir, 'color{}.png'.format(i))):
         #     continue
         # else:
-        if os.path.exists(os.path.join(img_dir, 'color{}.png'.format(i))):
-            image = cv2.imread(os.path.join(img_dir, 'color{}.png'.format(i)))
-
-            w, h, c = image.shape
-            half_w = h//2
-
-            #hsv的1通道经过adaptive之后可以很好的分割出整个物体，不要inv，但是还需要各种后处理
-            #hsv的2通道在canny下可以得到不错的边缘，但是自适应分割时完全看不出
-
-            # #lab的2通道在adaptive分割之后可以分割出整个物体，要inv，保留左半边并去除小区域即可
-            # #lab 0 通道可用于canny得到两个表面的边缘
-            # print('=============={}==================='.format(i))
-            # # mask_0 = cv2.adaptiveThreshold(half_image[...,0], 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 201, 2)
-            # mask_hsv,mask_lab = get_obj_mask(image, False)
-            # all_mask = get_convinced_mask(mask_hsv,mask_lab)
-            # print('done union')
-            # each_mask_list = get_each_mask(all_mask, False)
-            # all_edge = get_all_edge(image, all_mask, False)
-            # # all_edge = get_skeleteton(all_edge, 1)
-            # # cv2.imshow('skeleton', all_edge)
-            # # put_mask_on_img(all_edge, image, True, 'all_edge')
-            #
-            # obj_dict = {}
-            # for each_mask in each_mask_list:
-            #     # 求中心点
-            #     contours = get_exter_contours(each_mask, 'simple')
-            #     cnt = contours[0]
-            #     mask_center = get_centroid(cnt)
-            #     # 边缘处理
-            #     each_edge = get_intersection(all_edge, each_mask, False, '')
-            #     hsv_image = (convert_image(image, 'hsv')[...,2]).astype('uint8')
-            #     circles = get_convinced_circle(each_edge)  # 返回的是(N,3)数组
-            #     if circles is not None:
-            #         # 能检测到圆形， 说明起码是有圆
-            #         # 加上对侧边的删除
-            #         # 圆形需要连接
-            #         cv2.imshow('circle', each_edge)
-            #         obj_dict['circle'] = [(circles[0][0], circles[0][1]), 0, circles[0][2]]
-            #         print('有圆，半径为', circles[0][2])
-            #         # each_edge = get_skeleteton(each_edge, 1)
-            #         # all_contour = get_all_contours(each_edge, 'none')
-            #         # cnt_list = []
-            #         # for cnt in all_contour:
-            #         #     cnt_list.append(cnt)
-            #         # cnt_list = np.array(cnt_list)
-            #         # cv2.drawContours(each_edge, cnt_list, -1, 255, 2)
-            #         # cv2.imshow('test', each_edge)
-            #         # # each_edge = connect_breakpoint(each_edge, True)
-            #         # # all_lines, all_len = adap_detect_all_line_hough(each_edge, 15, True)
-            #         # # if all_lines is not None:
-            #         # #     draw_lines(all_lines, each_edge, 0, 1, True, 'after remove line on circle')
-            #         circles = get_convinced_circle(each_edge)
-            #         # cv2.waitKey()
-            #         if circles is not None:
-            #             assert len(circles) == 1
-            #             obj_dict['circle'] = [mask_center, (circles[0][0], circles[0][1]), 0, circles[0][2]]
-            #             print('仍然有圆，半径为', circles[0][2])
-            #     else:
-            #         # 是正多边形
-            #         print('无圆')
-            #         all_lines, all_len = adap_detect_all_line_hough(each_edge, 10, False)
-            #         all_lines, uppersurface_mask = get_uppersurface_edge_lines(all_lines, all_len, each_mask, center, False)
-            #         # 把直线萎缩成线段
-            #         all_lines = get_adjacent_lines(all_lines, each_mask)
-            #         vertex_coords, edge_segment_mask = get_proper_segment_lines(all_lines, each_edge.shape, 255, 1, False)
-            #         put_mask_on_img(edge_segment_mask, image, False, 'upper surface edge segment')
-            #         # 从线的角度得到要旋转的角度
-            #         geometry_shape = detect_shape_by_line_count(all_lines)
-            #         # rot_theta = get_rot_theta(vertex_coords, center, (w, h), edge_segment_mask, True)
-            #         rot_theta = get_rot_theta_old(edge_segment_mask, vertex_coords, False)
-            #         x,y = get_centroid(edge_segment_mask)
-            #         if (len(vertex_coords) == 4):
-            #             print('======检测到方',geometry_shape, (x, y), rot_theta, vertex_coords)
-            #         if (len(vertex_coords) == 3):
-            #             print('======检测到三角', geometry_shape, (x, y), rot_theta, vertex_coords)
-            #         obj_dict[geometry_shape] = [mask_center, (x, y), rot_theta, vertex_coords]
-
-                    # cv2.waitKey()
-            obj_list = get_info_for_arm(image)
+        if os.path.exists(os.path.join(img_dir,'{}.jpg'.format(i))):
+            image = cv2.imread(os.path.join(img_dir, '{}.jpg'.format(i)))
+            print('=============={}==================='.format(i))
+            obj_list = get_info_for_arm(image, True)
             print(obj_list)
-            # if obj_dict:
-            #     image = draw_label_on_image(image,obj_dict, True)
-            #
-            # np.save(os.path.join(cfg.data_root, 'label', 'objs_{}.npy'.format(i)), obj_dict)
-            # cv2.imwrite(os.path.join(cfg.data_root, 'label', 'objs_{}.png'.format(i)), image)
-
-
-
-
-
-            # put_mask_on_img(hsv_edge,half_image,True,'hsv_edge')
-            # put_mask_on_img(lab_edge,half_image,True,'lab_edge')
+            cv2.waitKey()
+            # ref_kit = cv2.imread(os.path.join(img_dir, 'ref_kit.jpg'))
+            # cv2.imshow('ref',ref_kit)
+            # now_kit = cv2.imread(os.path.join(img_dir, 'now_kit.jpg'))
+            # cv2.imshow('now',now_kit)
             # cv2.waitKey()
 
-            if select_param:
-                compare_corners(image, dict, i, color_space_name, color_space_range_dict)
+            # get_kit_offset(now_kit, ref_kit)
+            # cv2.waitKey()
 
-            if need_update:
-                pixel_range = update_mask(image,pixel_range,color_space_name)
-        if need_update:
-            print('======new_range====',pixel_range)
-            color_space_range_dict['obj_{}_lower'.format(color_space_name)] = pixel_range[0]
-            color_space_range_dict['obj_{}_upper'.format(color_space_name)] = pixel_range[1]
-            print(color_space_range_dict)
+        #     w, h, c = image.shape
+        #     half_w = h//2
+        #
+        #     #hsv的1通道经过adaptive之后可以很好的分割出整个物体，不要inv，但是还需要各种后处理
+        #     #hsv的2通道在canny下可以得到不错的边缘，但是自适应分割时完全看不出
+        #
+        #     #lab的2通道在adaptive分割之后可以分割出整个物体，要inv，保留左半边并去除小区域即可
+        #     #lab 0 通道可用于canny得到两个表面的边缘
+        #     mask_hsv,mask_lab = get_obj_mask(image, False)
+        #     all_mask = get_convinced_mask(mask_hsv,mask_lab)
+        #     cv2.imshow('all_mask', all_mask)
+        #     print('done union')
+        #     each_mask_list = get_each_mask(all_mask, False)
+        #     all_edge = get_all_edge(image, all_mask, False)
+        #     obj_dict = {}
+        #     for each_mask in each_mask_list:
+        #         contours = get_exter_contours(each_mask, 'simple')
+        #         cnt = contours[0]
+        #         mask_center = get_centroid(cnt)
+        #         # 边缘处理
+        #         each_edge = get_intersection(all_edge, each_mask, True, 'one obj edge')
+        #         lab_image = (convert_image(image, 'lab')[...,0]).astype('uint8')
+        #         lab_image_part = get_intersection(lab_image, each_mask, False, 'lab_circle')
+        #         circles = get_convinced_circle(lab_image_part)  # 返回的是(N,3)数组
+        #         if circles is not None:
+        #             # 能检测到圆形， 说明起码是有圆
+        #             # 加上对侧边的删除
+        #             # 圆形需要连接
+        #             hsv_image = (convert_image(image, 'hsv')[..., 2]).astype('uint8')
+        #             the_circle = confirm_circle([hsv_image, lab_image])
+        #             obj_dict['circle'] = [(the_circle[0], the_circle[1]), 0, the_circle[2]]
+        #             cv2.waitKey()
+        #         else:
+        #             # 是正多边形
+        #             print('无圆')
+        #             # detect_line_hough(each_edge, 20, True)
+        #             all_lines, all_len = adap_detect_all_line_hough(each_edge, 20, True)
+        #             cv2.waitKey()
+        #             all_lines, uppersurface_mask = get_uppersurface_edge_lines(all_lines, all_len, each_mask, mask_center, False)
+        #             # 把直线萎缩成线段
+        #             all_lines = get_adjacent_lines(all_lines, each_mask)
+        #             vertex_coords, edge_segment_mask = get_proper_segment_lines(all_lines, each_edge.shape, 255, 1, False)
+        #             put_mask_on_img(edge_segment_mask, image, False, 'upper surface edge segment')
+        #             # 从线的角度得到要旋转的角度
+        #             geometry_shape = detect_shape_by_line_count(all_lines)
+        #             # rot_theta = get_rot_theta(vertex_coords, center, (w, h), edge_segment_mask, True)
+        #             rot_theta = get_rot_theta_old(edge_segment_mask, vertex_coords, False)
+        #             x,y = get_centroid(edge_segment_mask)
+        #             obj_dict[geometry_shape] = [(x, y), rot_theta, vertex_coords]
+        #
+        #             cv2.waitKey()
+        #     if obj_dict:
+        #         image = draw_label_on_image(image,obj_dict, True)
+        #
+        #
+        #     # 保存检测图片和信息字典
+        #     # np.save(os.path.join(cfg.data_root, 'label', 'objs_{}.npy'.format(i)), obj_dict)
+        #     # cv2.imwrite(os.path.join(cfg.data_root, 'label', 'objs_{}.png'.format(i)), image)
+        #
+        #
+        #     cv2.waitKey()
+        #     #
+        #     if select_param:
+        #         compare_corners(image, dict, i, color_space_name, color_space_range_dict)
+        #
+        #     if need_update:
+        #         pixel_range = update_mask(image,pixel_range,color_space_name)
+        # if need_update:
+        #     print('======new_range====',pixel_range)
+        #     color_space_range_dict['obj_{}_lower'.format(color_space_name)] = pixel_range[0]
+        #     color_space_range_dict['obj_{}_upper'.format(color_space_name)] = pixel_range[1]
+        #     print(color_space_range_dict)
 
 
         # print(dict)

@@ -143,15 +143,18 @@ def rand_coords(epoch=100, radius=4200):
 def arm_placement(robot, coord2, rz1=0, hand=-1):# hand为-1，则为物体部分。1为盒子部分
     box_pos = [-64.6159, 269.41, -39]            # 不遮挡相机拍摄的机械臂位置，每次结束放置后移动至该位置。
     time.sleep(0.5) 
-    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,hand)    # 机械臂准备放置
+    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, 0,140,0,hand)    # 机械臂准备放置
     robot.wait_stop()
-    print("ready to place: coord value {}, speed 70\n".format(coord2))
+    print("ready to place: coord value {}, speed 140\n".format(coord2))
     if a == 1: print("moving") 
     else: 
         print("error, code is {}".format(a))
         raise RuntimeError("arm cannot move to the location {}".format(coord2))
-    time.sleep(0.5)
-    print("::placing, coord value {}, speed 70\n".format(coord2))
+    time.sleep(0.25)
+    a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,hand)    # 机械臂旋转
+    robot.wait_stop()
+    time.sleep(0.25)
+    print("::placing, coord value {}, speed 100\n".format(coord2))
     a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2]-5 , rz1,100,0,hand)       # 机械臂放置.z轴如果空中放置则-1，多线程放置则-5
     robot.wait_stop()
     if a == 1: print("moving") 
@@ -160,7 +163,7 @@ def arm_placement(robot, coord2, rz1=0, hand=-1):# hand为-1，则为物体部�
     pump_off()                                                                          # 机械臂松手
     time.sleep(0.5)
 
-    print("::send_coords, coord value {}, speed 70\n".format(coord2))
+    print("::send_coords, coord value {}, speed 140\n".format(coord2))
     a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, rz1,140,0,hand)      # 机械臂抬起
     robot.wait_stop()
     if a == 1: print("moving") 
@@ -176,10 +179,12 @@ def arm_suction(robot, coord2, rz2=0):
     if a == 1: print("moving") 
     else: print("error, code is {}".format(a))
     time.sleep(0.5)  
-                                
+
     a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2]-5, rz2, 90, 0,-1)         # 机械臂吸取
     robot.wait_stop()
-    if a == 1: print("moving") 
+    if a == 1: 
+        print("moving") 
+        print("::send_coords, coord value {}, speed 90\n".format(coord2))
     else: print("error, code is {}".format(a)) 
     time.sleep(0.5)  
     # coord1up = coordup(coord1)
@@ -359,7 +364,7 @@ if __name__ == '__main__':
     cam = np.float32([[375, 167]])
     print(cam.shape)
     print(c2b(M, cam))
-
+ 
     
 
     print("---------------init camera---------------")
@@ -396,14 +401,17 @@ if __name__ == '__main__':
         time.sleep(0.5)
 
     color_image,_ = get_curr_image(pipeline, align)                                      # 记录图像
+    ref_image = cv2.imread("origin_box.jpg")
     cv2.imwrite("test.jpg", color_image)
 
-    obj_list = analyse_shape.get_info_for_arm(color_image)             # obj_list [['circle', (278, 194), 0], ['triangle', (335, 324), 78.01278750418338]]
+    obj_list = analyse_shape.get_info_for_arm(color_image, False)             # obj_list [['circle', (278, 194), 0], ['triangle', (335, 324), 78.01278750418338]]
+    x, y = analyse_shape.get_kit_offset(color_image, ref_image)                    # 计算盒子的像素平移距离
+    x_box = x / 42 * 24                                                         # 计算盒子的机械臂平移距离
     for obj in obj_list:
         center = obj[1]
         rz1 = obj[2]
         if obj[0] == 'circle':
-            coord2 = [98.27, 182.8504, -66.39]
+            coord2 = [98.27, 182.8504, -66.39]                  # [98,207] + 24
         elif obj[0] == 'square':
             coord2 = [173.5626, 179.799, -66.39]
         elif obj[0] == 'triangle':
@@ -412,7 +420,8 @@ if __name__ == '__main__':
             coord2 = [95.1082, 104.0858, -66.39]                # coord2代表放置位置
         else:
             raise RuntimeError("Can not identify the item.")
-        
+        # coord2[1] += x_box
+
 
         print("center is {}".format(center))
         center = np.float32(center)
