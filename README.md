@@ -4,7 +4,7 @@
 # Installation
     pip install -e .  
 # Data
-数据集形式,具体在[Deltademo](https://github.com/Geiright/Deltademo)/**docs**/setup.md参阅
+数据集形式,具体在[Deltademo](https://github.com/Geiright/Deltademo)/**docs**/setup.md参阅 
 数据集放置位置是[Object-positioning-and-intelligent-placement](https://github.com/Geiright/Deltademo)/[form2fit](https://github.com/Geiright/Deltademo/tree/master/form2fit)/[code](https://github.com/Geiright/Deltademo/tree/master/form2fit/code)/[ml](https://github.com/Geiright/Deltademo/tree/master/form2fit/code/ml)/**dataset**/ 
 
 11.12 数据集下载地址：  
