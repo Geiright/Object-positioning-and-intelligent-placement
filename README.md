@@ -2,6 +2,8 @@
 边缘终端依据感知信息，确定目标物体，选择摆放空间，满足目标物体与摆放空间的匹配需求，实现智能摆放
     ![](/assets/firstplace1.png)
 # Installation
+Pytorch版本选择1.7.1版本
+    pip install torch===1.7.1+cu110 torchvision===0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html  
     pip install -e .  
 # Data
 数据集形式,具体在[Object-positioning-and-intelligent-placement](https://github.com/Geiright/Deltademo)/**docs**/setup.md参阅  
