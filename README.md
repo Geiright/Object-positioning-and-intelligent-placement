@@ -1,6 +1,6 @@
 # Intro
 边缘终端依据感知信息，确定目标物体，选择摆放空间，满足目标物体与摆放空间的匹配需求，实现智能摆放
-! (/assets/firstplace1.png)
+    ! (/assets/firstplace1.png)
 # Installation
     pip install -e .  。
 # Data
