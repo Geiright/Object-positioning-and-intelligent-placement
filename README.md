@@ -3,8 +3,8 @@
     ![](/assets/firstplace1.png)
 # Installation
 Pytorch版本选择1.7.1版本  
-    pip install torch===1.7.1+cu110 torchvision===0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html  
-    pip install -e .  
+    'pip install torch===1.7.1+cu110 torchvision===0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html'  
+    'pip install -e . '  
 # Data
 数据集形式,具体在[Object-positioning-and-intelligent-placement](https://github.com/Geiright/Deltademo)/**docs**/setup.md参阅  
 数据集放置位置是[Object-positioning-and-intelligent-placement](https://github.com/Geiright/Deltademo)/[form2fit](https://github.com/Geiright/Deltademo/tree/master/form2fit)/[code](https://github.com/Geiright/Deltademo/tree/master/form2fit/code)/[ml](https://github.com/Geiright/Deltademo/tree/master/form2fit/code/ml)/**dataset**/ 
