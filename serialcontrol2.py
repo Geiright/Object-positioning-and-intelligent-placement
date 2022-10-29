@@ -10,7 +10,7 @@ class pump_control(threading.Thread):
          
     def run(self):
         print("pump thread running")
-        ser = serial.Serial("com6", 9600, timeout=0.5)
+        ser = serial.Serial("com7", 9600, timeout=0.5)
         i = 0
         while(1):       # 子进程，用于不断输出0
             if ser.isOpen():

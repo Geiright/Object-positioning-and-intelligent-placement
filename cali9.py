@@ -61,7 +61,7 @@ def rotate_uv(uv, angle, rows, cols, cxcy=None):
     return uv_rot
 
 
-def c2b(M, cam_points):                     # camera  to  board
+def c2b(M, cam_points):                             # camera  to  board
     assert cam_points.shape == (1,2)
     assert M.shape == (2,3)
     R = M[:,:2]
@@ -70,7 +70,7 @@ def c2b(M, cam_points):                     # camera  to  board
     board_points = (M @ np.hstack((cam_points, np.ones((len(cam_points), 1)))).T).T
     return board_points
 
-def b2c(Mn, board_points):                   # board  to  camera
+def b2c(Mn, board_points):                          # board  to  camera
     assert Mn.shape == (2,3)
     board_points = np.array(board_points, dtype='float32')
     board_points = np.expand_dims(board_points, axis=0)
@@ -78,7 +78,7 @@ def b2c(Mn, board_points):                   # board  to  camera
     cam_points = (Mn @ np.hstack((board_points, np.ones((len(board_points), 1)))).T).T
     return cam_points.tolist()
 
-def get_data_txt(dir='data.txt'):           # 按照 [imgpoints0, imgpoints1, objpoints0, objpoints1, objpoints2] 的原则读取txt.
+def get_data_txt(dir='data.txt'):                   # 按照 [imgpoints0, imgpoints1, objpoints0, objpoints1, objpoints2] 的原则读取txt.
     f = open(dir, 'r')
     imgpoints = []
     objpoints = []
@@ -92,11 +92,11 @@ def get_data_txt(dir='data.txt'):           # 按照 [imgpoints0, imgpoints1, ob
 
 # [482,261], [488,346], [492,470], [492,537], []
 # [95.8741, -68.0953], [125.6157, -67.1776], [168.4202, -67.1775], [191.0811, -67.6724], []
-def getM():                             # 物体部分的坐标转换
-    imgpoints = [[260.0, 170.0], [261.0, 207.0], [263.0, 245.0], [264.0, 284.0], [266.0, 322.0], [268.0, 360.0], [268.0, 399.0], [270.0, 436.0], [300.0, 169.0], [301.0, 207.0], [303.0, 245.0], [303.0, 283.0], [304.0, 321.0], [306.0, 359.0], [308.0, 397.0], [310.0, 435.0], [196.0, 278.0], [339.0, 205.0], [340.0, 243.0], [340.0, 282.0], [342.0, 320.0], [345.0, 358.0], [345.0, 396.0], [346.0, 434.0]]
-    objpoints =  [[90.0, -100.0], [110.0, -100.0], [130.0, -100.0], [150.0, -100.0], [170.0, -100.0], [190.0, -100.0], [210.0, -100.0], [230.0, -100.0], [90.0, -80.0], [110.0, -80.0], [130.0, -80.0], [150.0, -80.0], [170.0, -80.0], [190.0, -80.0], [210.0, -80.0], [230.0, -80.0], [90.0, -60.0], [110.0, -60.0], [130.0, -60.0], [150.0, -60.0], [170.0, -60.0], [190.0, -60.0], [210.0, -60.0], [230.0, -60.0]]
-    # [[214.4791, -46.4357], [212.3297, -105.9849], [210.5402, -159.6319], [162.6528, -159.6316], [162.6527, -108.4162], [162.6526, -50.669], [80.1705, -150.8045]]
-    # imgpoints, objpoints = get_data_txt()
+def getM():                                         # 物体部分的坐标转换
+    # imgpoints = [[260.0, 170.0], [261.0, 207.0], [263.0, 245.0], [264.0, 284.0], [266.0, 322.0], [268.0, 360.0], [268.0, 399.0], [270.0, 436.0], [300.0, 169.0], [301.0, 207.0], [303.0, 245.0], [303.0, 283.0], [304.0, 321.0], [306.0, 359.0], [308.0, 397.0], [310.0, 435.0], [196.0, 278.0], [339.0, 205.0], [340.0, 243.0], [340.0, 282.0], [342.0, 320.0], [345.0, 358.0], [345.0, 396.0], [346.0, 434.0]]
+    # objpoints =  [[90.0, -100.0], [110.0, -100.0], [130.0, -100.0], [150.0, -100.0], [170.0, -100.0], [190.0, -100.0], [210.0, -100.0], [230.0, -100.0], [90.0, -80.0], [110.0, -80.0], [130.0, -80.0], [150.0, -80.0], [170.0, -80.0], [190.0, -80.0], [210.0, -80.0], [230.0, -80.0], [90.0, -60.0], [110.0, -60.0], [130.0, -60.0], [150.0, -60.0], [170.0, -60.0], [190.0, -60.0], [210.0, -60.0], [230.0, -60.0]]
+    
+    imgpoints, objpoints = get_data_txt()
     
     imgpoints = np.array(imgpoints,dtype='float32')
     objpoints = np.array(objpoints,dtype='float32')
@@ -104,7 +104,7 @@ def getM():                             # 物体部分的坐标转换
     Mn, _ = cv2.estimateAffine2D(objpoints, imgpoints,True)
     return M, Mn                                         # M是从像素坐标系转换为机械臂坐标系的矩阵，Mn反之
 
-def getM_box():                             # 盒子部分的坐标转换
+def getM_box():                                     # 盒子部分的坐标转换
     imgpoints = [[893,261], [889,431], [1079,428], [1079,264]]
     objpoints = [[98.8834, 71.6999], [157.0539, 67.6597], [158.7592,132.9691], [102.5297,135.2645]]
     imgpoints = np.array(imgpoints,dtype='float32')
@@ -115,7 +115,7 @@ def getM_box():                             # 盒子部分的坐标转换
 
 
 
-def rand_coords(epoch=100, radius=4200):   
+def rand_coords(epoch=100, radius=4200):            # 生成随机的坐标值，主要用于自动标定过程。
     randcoords = []                                                         # 存放生成的坐标
     # sqs = []                                                                # 暂存x y 的点值
     x1,y1 = 90, -100
@@ -140,7 +140,7 @@ def rand_coords(epoch=100, radius=4200):
 
 
 
-def arm_placement(robot, coord2, rz1=0, hand=-1):# hand为-1，则为物体部分。1为盒子部分
+def arm_placement(robot, coord2, rz1=0, hand=-1):   # 机械臂的放置指令。hand为-1，则为物体部分。1为盒子部分
     box_pos = [-64.6159, 269.41, -39]            # 不遮挡相机拍摄的机械臂位置，每次结束放置后移动至该位置。
     time.sleep(0.5) 
     a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2] + 40, 0,140,0,hand)    # 机械臂准备放置
@@ -173,7 +173,7 @@ def arm_placement(robot, coord2, rz1=0, hand=-1):# hand为-1，则为物体部�
     a = robot.new_movej_xyz_lr(box_pos[0], box_pos[1], -34, 0,120,0,1)                   # 机械臂回原位置
     robot.wait_stop()    
 
-def arm_suction(robot, coord2, rz2=0):
+def arm_suction(robot, coord2, rz2=0):              # 机械臂的吸取指令。
     a = robot.new_movej_xyz_lr(coord2[0], coord2[1], coord2[2]+40, rz2,120,0,-1)      # 机械臂准备吸取  (盒子这边是1，物块那一边是-1)
     robot.wait_stop()
     if a == 1: print("moving") 
@@ -195,7 +195,7 @@ def arm_suction(robot, coord2, rz2=0):
 
 
 
-def autocali():                 # eye to hand 标定法
+def autocali():                                     # 用于机械臂的手动标定。每一次要手动移动机械臂到指定位置。eye to hand 标定法
 
     box_pos = [-64.6159, 269.41, -39]   # 机械臂原始位置
     choose = 'box'          # 选择的是盒子内还是盒子外的标定    
@@ -316,6 +316,7 @@ def autocali2():                                    # 用于机械臂的自动�
         objpoints.append([coord2[0], coord2[1]])
         print("objpoint [{}, {}] no.{}".format(coord2[0], coord2[1], i))
         color_image,_ = get_curr_image(pipeline, align)                                      # 记录图像
+        cv2.imwrite("test.jpg", color_image)
         center = get_center.get_center(color_image)                                                       # 求质心
         imgpoints.append(center)
         allpoints.append([center[0], center[1], coord2[0], coord2[1], -98])
@@ -329,15 +330,8 @@ def autocali2():                                    # 用于机械臂的自动�
         
         
         
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    # way = 2
+def deltademo():                                    # 用于机械臂吸取摆放demo实现。
+ # way = 2
     # if way == 1:
     # img = cv2.imread("1.png")
     # pts1 = np.float32([[50.4306, -175.9408], [199.0511, -175.1985], [195.3472, 34.5088]]) #[106.8482, 32.2865]
@@ -380,7 +374,10 @@ if __name__ == '__main__':
     while ret != 1:
         time.sleep(0.1)
         ret = robot.is_connect()
-        print(ret)
+        if(ret):
+            print("robot is connected successfully.")
+        else:
+            time.sleep(2)
     ret = robot.initial(3, 180)
     if ret == 1:
         print("robot initial successful")
@@ -432,3 +429,7 @@ if __name__ == '__main__':
         
         arm_suction(robot, coord1, rz2=0)                               # 机械臂把物体吸起
         arm_placement(robot, coord2, rz1=-rz1, hand=1)                   # 机械臂把物体放下
+
+
+if __name__ == '__main__':
+   deltademo()
