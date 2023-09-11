@@ -270,7 +270,7 @@ def autocali2():                                    # 用于机械臂的自动�
     imgpoints = []
     allpoints = []                          # allpoints用于存储适合放入神经网络的坐标。格式：[obj0,obj1,obj2,img0,img1]
     epoch = 25
-    randcoords = rand_coords(epoch)                          # 随机生成放置的四个坐标list
+    randcoords = rand_coords(epoch)                          # 随机生成放置的坐标list
     print("---------------init camera---------------")
     pipeline, align = initial_camera()
 
@@ -432,4 +432,4 @@ def deltademo():                                    # 用于机械臂吸取摆�
 
 
 if __name__ == '__main__':
-   deltademo()
+   autocali2()
