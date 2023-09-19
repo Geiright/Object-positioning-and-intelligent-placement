@@ -27,15 +27,19 @@ Pytorch版本选择1.7.1版本
     pip install -e .      
 
 安装机械臂 Python API  
-    链接请邮件联系 13643660762@163.com 获取，标题为姓名-学校-机械臂-DeltaDemo项目机械臂Python API获取  
-上述链接是机械臂的软件集合，包含操作软件，Python API， 以及使用教程  
+
+        链接请邮件联系 `13643660762@163.com` 获取，标题为 `姓名-学校-机械臂-DeltaDemo项目机械臂Python API获取`  
+        
+此链接为机械臂的软件集合，包含操作软件，Python API， 以及使用教程  
 
 ## 机械臂初始化
+
 1、根据ip初始化教程，运行机械臂ip配置程序，该配置程序位于机械臂操作软件内部  
   
 2、下载机械臂Python API代码包，将代码包粘贴至本项目文件夹  
 
 ## 电磁阀初始化
+
 安装电磁阀、标定代码所需依赖  
 
     pip install pyserial
@@ -73,17 +77,24 @@ Pytorch版本选择1.7.1版本
 # 测试
 
 ## 机械臂测试
+
 运行armcontrol，对机械臂运行进行测试。如果运行后机械臂成功移动，并回正，则说明功能良好。  
 
-    python3 armcontrol.py
+    python3 armcontrol.py  
 
 ## 电磁阀测试
-运行serialcontrol2，对电磁阀通断进行测试。如果运行后听到电子阀进行了一通一断，则说明功能良好。    
 
-    python3 serialcontrol2.py
+将“COM7”修改为自己机器对应串口（开始按钮右键->设备管理器）。   
+
+运行serialcontrol2，对电磁阀通断进行测试。   
+
+如果运行后听到电子阀进行了一通一断，则说明功能良好。    
+
+    python3 serialcontrol2.py  
 
 ## 深度相机测试
 1.下载安装Intel RealSense Viewer V2.49.0 软件，连接相机，查看RGB Camera、 Depth Camera运行情况。  
+
 注意相机连接速率最佳应为USB3.1。  
   
 2.命令行运行python，import pyrealsense2 检查运行情况。若出错，在代码中调整路径：  
@@ -96,10 +107,13 @@ Pytorch版本选择1.7.1版本
     python3 form2fit\code\get_align_img.py
 
 # 标定
+
 使用cali9.py的autocali()进行手动标定，使用cali9.py的autocali2()进行自动标定（推荐）。
 
 ## 自动标定法
+
 1.标定前，首先开启机械臂开关，电磁阀开关，将机械臂回原位，将蓝色圆柱体放置于机械臂末端吸住。使用蓝色圆柱体作为标定物进行自动标定。  
+
 2.运行autocali2开启标定流程。机械臂会自动放置标定物于[10*10]点位，记录机械臂基底坐标并拍照。  
 
 
